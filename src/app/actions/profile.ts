@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { ALLOWED_AVATAR_TYPES, validateAvatarFile } from '@/lib/avatar'
 
 export type ProfileFieldErrors = {
   display_name?: string
@@ -19,12 +20,6 @@ export type ProfileFormState =
   | undefined
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024
-const ALLOWED_AVATAR_TYPES: Record<string, string> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/webp': 'webp',
-}
 
 export async function updateProfile(
   _prevState: ProfileFormState,
@@ -62,11 +57,9 @@ export async function updateProfile(
 
   const hasAvatarUpload = avatarFile instanceof File && avatarFile.size > 0
   if (hasAvatarUpload) {
-    const file = avatarFile as File
-    if (file.size > MAX_AVATAR_BYTES) {
-      fieldErrors.avatar = 'La imagen no puede superar 2MB.'
-    } else if (!ALLOWED_AVATAR_TYPES[file.type]) {
-      fieldErrors.avatar = 'Formato no soportado (usa PNG, JPG o WEBP).'
+    const avatarError = validateAvatarFile(avatarFile as File)
+    if (avatarError) {
+      fieldErrors.avatar = avatarError
     }
   }
 

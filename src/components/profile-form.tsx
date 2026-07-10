@@ -1,11 +1,12 @@
 'use client'
 
-import { useActionState, useState, type ChangeEvent } from 'react'
+import { useActionState, useEffect, useState, type ChangeEvent } from 'react'
 import { updateProfile } from '@/app/actions/profile'
 import { AvatarFlip } from '@/components/avatar-flip'
 import { ColorField } from '@/components/color-field'
 import { Toast } from '@/components/toast'
 import { getContrastColor } from '@/lib/color'
+import { validateAvatarFile } from '@/lib/avatar'
 
 type ProfileFormProps = {
   profile: {
@@ -28,31 +29,51 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const [bgColor, setBgColor] = useState(profile.bg_color)
   const [buttonColor, setButtonColor] = useState(profile.button_color)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile.avatar_url)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
 
-  // Patrón "ajustar estado durante el render" (no en un efecto): cada vez
-  // que useActionState entrega un `state` nuevo con resultado general
-  // (éxito/error), se arma un nuevo toast y se resetea su dismiss.
-  const [prevState, setPrevState] = useState(state)
   const [toastKey, setToastKey] = useState(0)
   const [toastDismissed, setToastDismissed] = useState(false)
 
-  if (state !== prevState) {
-    setPrevState(state)
+  // Sincroniza el toast con el resultado de la Server Action: cada vez que
+  // useActionState entrega un `state` nuevo con resultado general
+  // (éxito/error), se arma un nuevo toast. `state` es un objeto nuevo en
+  // cada submit, así que el efecto corre una vez por resultado real.
+  useEffect(() => {
     if (state?.success || state?.error) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reacciona a un resultado async ya resuelto (Server Action), no deriva de props en cada render.
       setToastKey((k) => k + 1)
       setToastDismissed(false)
     }
-  }
+  }, [state])
 
   const showToast = Boolean(state?.success || state?.error) && !toastDismissed
   const toastVariant: 'success' | 'error' = state?.success ? 'success' : 'error'
   const toastMessage = state?.success ? 'Perfil actualizado.' : (state?.error ?? '')
 
+  const avatarErrorMessage = avatarError ?? state?.fieldErrors?.avatar
+
   function handleAvatarChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) {
-      setAvatarPreview(URL.createObjectURL(file))
+    if (!file) {
+      return
     }
+
+    const validationError = validateAvatarFile(file)
+    if (validationError) {
+      // Archivo inválido: no se toca la preview (sigue mostrando el avatar
+      // actual) y el input se limpia para que no se envíe al guardar.
+      setAvatarError(validationError)
+      e.target.value = ''
+      return
+    }
+
+    setAvatarError(null)
+    setAvatarPreview((prev) => {
+      if (prev?.startsWith('blob:')) {
+        URL.revokeObjectURL(prev)
+      }
+      return URL.createObjectURL(file)
+    })
   }
 
   const previewTextColor = getContrastColor(bgColor)
@@ -96,8 +117,8 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             className="mt-1 w-full text-sm text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-900"
           />
           <p className="mt-1 text-xs text-slate-500">PNG, JPG o WEBP. Máximo 2MB.</p>
-          {state?.fieldErrors?.avatar && (
-            <p className="mt-1 text-xs text-red-400">{state.fieldErrors.avatar}</p>
+          {avatarErrorMessage && (
+            <p className="mt-1 text-xs text-red-400">{avatarErrorMessage}</p>
           )}
         </div>
 
