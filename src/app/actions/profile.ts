@@ -3,7 +3,20 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
-export type ProfileFormState = { error?: string; success?: boolean } | undefined
+export type ProfileFieldErrors = {
+  display_name?: string
+  bio?: string
+  bg_color?: string
+  button_color?: string
+  avatar?: string
+}
+
+// `error` es el resultado general de la operación (se muestra en un toast).
+// `fieldErrors` son errores de validación de un campo puntual (se muestran
+// pegados a ese campo, nunca en el toast).
+export type ProfileFormState =
+  | { error?: string; success?: boolean; fieldErrors?: ProfileFieldErrors }
+  | undefined
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
@@ -32,34 +45,47 @@ export async function updateProfile(
   const buttonColor = String(formData.get('button_color') ?? '').trim()
   const avatarFile = formData.get('avatar')
 
+  const fieldErrors: ProfileFieldErrors = {}
+
   if (!displayName) {
-    return { error: 'El nombre no puede estar vacío.' }
+    fieldErrors.display_name = 'El nombre no puede estar vacío.'
   }
   if (bio.length > 160) {
-    return { error: 'La bio no puede superar 160 caracteres.' }
+    fieldErrors.bio = 'La bio no puede superar 160 caracteres.'
   }
-  if (!HEX_COLOR_RE.test(bgColor) || !HEX_COLOR_RE.test(buttonColor)) {
-    return { error: 'Los colores deben ser códigos hex válidos (#rrggbb).' }
+  if (!HEX_COLOR_RE.test(bgColor)) {
+    fieldErrors.bg_color = 'Color hex inválido (#rrggbb).'
+  }
+  if (!HEX_COLOR_RE.test(buttonColor)) {
+    fieldErrors.button_color = 'Color hex inválido (#rrggbb).'
+  }
+
+  const hasAvatarUpload = avatarFile instanceof File && avatarFile.size > 0
+  if (hasAvatarUpload) {
+    const file = avatarFile as File
+    if (file.size > MAX_AVATAR_BYTES) {
+      fieldErrors.avatar = 'La imagen no puede superar 2MB.'
+    } else if (!ALLOWED_AVATAR_TYPES[file.type]) {
+      fieldErrors.avatar = 'Formato no soportado (usa PNG, JPG o WEBP).'
+    }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return { fieldErrors }
   }
 
   let avatarUrl: string | undefined
 
-  if (avatarFile instanceof File && avatarFile.size > 0) {
-    if (avatarFile.size > MAX_AVATAR_BYTES) {
-      return { error: 'La imagen no puede superar 2MB.' }
-    }
-    const ext = ALLOWED_AVATAR_TYPES[avatarFile.type]
-    if (!ext) {
-      return { error: 'Formato de imagen no soportado (usa PNG, JPG o WEBP).' }
-    }
-
+  if (hasAvatarUpload) {
+    const file = avatarFile as File
+    const ext = ALLOWED_AVATAR_TYPES[file.type]
     const path = `${user.id}/avatar.${ext}`
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type })
+      .upload(path, file, { upsert: true, contentType: file.type })
 
     if (uploadError) {
-      return { error: 'No se pudo subir la imagen.' }
+      return { fieldErrors: { avatar: 'No se pudo subir la imagen.' } }
     }
 
     const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(path)

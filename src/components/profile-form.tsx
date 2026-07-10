@@ -4,6 +4,7 @@ import { useActionState, useState, type ChangeEvent } from 'react'
 import { updateProfile } from '@/app/actions/profile'
 import { AvatarFlip } from '@/components/avatar-flip'
 import { ColorField } from '@/components/color-field'
+import { Toast } from '@/components/toast'
 import { getContrastColor } from '@/lib/color'
 
 type ProfileFormProps = {
@@ -27,6 +28,25 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const [bgColor, setBgColor] = useState(profile.bg_color)
   const [buttonColor, setButtonColor] = useState(profile.button_color)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile.avatar_url)
+
+  // Patrón "ajustar estado durante el render" (no en un efecto): cada vez
+  // que useActionState entrega un `state` nuevo con resultado general
+  // (éxito/error), se arma un nuevo toast y se resetea su dismiss.
+  const [prevState, setPrevState] = useState(state)
+  const [toastKey, setToastKey] = useState(0)
+  const [toastDismissed, setToastDismissed] = useState(false)
+
+  if (state !== prevState) {
+    setPrevState(state)
+    if (state?.success || state?.error) {
+      setToastKey((k) => k + 1)
+      setToastDismissed(false)
+    }
+  }
+
+  const showToast = Boolean(state?.success || state?.error) && !toastDismissed
+  const toastVariant: 'success' | 'error' = state?.success ? 'success' : 'error'
+  const toastMessage = state?.success ? 'Perfil actualizado.' : (state?.error ?? '')
 
   function handleAvatarChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -76,6 +96,9 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             className="mt-1 w-full text-sm text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-900"
           />
           <p className="mt-1 text-xs text-slate-500">PNG, JPG o WEBP. Máximo 2MB.</p>
+          {state?.fieldErrors?.avatar && (
+            <p className="mt-1 text-xs text-red-400">{state.fieldErrors.avatar}</p>
+          )}
         </div>
 
         <div>
@@ -90,6 +113,9 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             onChange={(e) => setDisplayName(e.target.value)}
             className="mt-1 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-white"
           />
+          {state?.fieldErrors?.display_name && (
+            <p className="mt-1 text-xs text-red-400">{state.fieldErrors.display_name}</p>
+          )}
         </div>
 
         <div>
@@ -105,6 +131,9 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             onChange={(e) => setBio(e.target.value)}
             className="mt-1 w-full resize-none rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-white"
           />
+          {state?.fieldErrors?.bio && (
+            <p className="mt-1 text-xs text-red-400">{state.fieldErrors.bio}</p>
+          )}
           <p className="mt-1 text-right text-xs text-slate-500">
             {bio.length}/{MAX_BIO_LENGTH}
           </p>
@@ -116,19 +145,16 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             label="Color de fondo"
             defaultValue={profile.bg_color}
             onChange={setBgColor}
+            error={state?.fieldErrors?.bg_color}
           />
           <ColorField
             name="button_color"
             label="Color de botones"
             defaultValue={profile.button_color}
             onChange={setButtonColor}
+            error={state?.fieldErrors?.button_color}
           />
         </div>
-
-        {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
-        {state?.success && (
-          <p className="text-sm text-emerald-400">Perfil actualizado.</p>
-        )}
 
         <button
           type="submit"
@@ -138,6 +164,15 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           {pending ? 'Guardando...' : 'Guardar cambios'}
         </button>
       </form>
+
+      {showToast && (
+        <Toast
+          key={toastKey}
+          message={toastMessage}
+          variant={toastVariant}
+          onDismiss={() => setToastDismissed(true)}
+        />
+      )}
     </div>
   )
 }

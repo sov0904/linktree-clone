@@ -7,11 +7,12 @@ type ColorFieldProps = {
   label: string
   defaultValue: string
   onChange?: (hex: string) => void
+  error?: string
 }
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/
 
-export function ColorField({ name, label, defaultValue, onChange }: ColorFieldProps) {
+export function ColorField({ name, label, defaultValue, onChange, error }: ColorFieldProps) {
   const id = useId()
   const [value, setValue] = useState(defaultValue)
 
@@ -47,6 +48,7 @@ export function ColorField({ name, label, defaultValue, onChange }: ColorFieldPr
           className="w-28 rounded-md border border-slate-700 bg-slate-800 px-2 py-2 text-sm text-white"
         />
       </div>
+      {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
     </div>
   )
 }
