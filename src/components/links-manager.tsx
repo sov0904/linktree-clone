@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { addLink, deleteLink, moveLink, updateLink } from '@/app/actions/links'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { LinkButton } from '@/components/link-button'
 import { LinkForm } from '@/components/link-form'
 import { Toast } from '@/components/toast'
@@ -19,28 +20,15 @@ type LinksManagerProps = {
   buttonColor: string
 }
 
-// Ventana durante la cual el botón de eliminar queda en modo "¿Confirmar?"
-// antes de volver a su estado normal (patrón liviano, sin modal).
-const DELETE_CONFIRM_MS = 3000
-
 export function LinksManager({ links, buttonColor }: LinksManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [deletingLink, setDeletingLink] = useState<LinkRow | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const [toastKey, setToastKey] = useState(0)
   const [toastDismissed, setToastDismissed] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const [toastVariant, setToastVariant] = useState<'success' | 'error'>('success')
-
-  useEffect(() => {
-    return () => {
-      if (confirmTimer.current) {
-        clearTimeout(confirmTimer.current)
-      }
-    }
-  }, [])
 
   function notify(message: string, variant: 'success' | 'error') {
     setToastMessage(message)
@@ -76,20 +64,12 @@ export function LinksManager({ links, buttonColor }: LinksManagerProps) {
     return {}
   }
 
-  function handleDeleteClick(id: string) {
-    if (confirmDeleteId !== id) {
-      if (confirmTimer.current) {
-        clearTimeout(confirmTimer.current)
-      }
-      setConfirmDeleteId(id)
-      confirmTimer.current = setTimeout(() => setConfirmDeleteId(null), DELETE_CONFIRM_MS)
+  function confirmDelete() {
+    if (!deletingLink) {
       return
     }
-
-    if (confirmTimer.current) {
-      clearTimeout(confirmTimer.current)
-    }
-    setConfirmDeleteId(null)
+    const id = deletingLink.id
+    setDeletingLink(null)
     startTransition(async () => {
       const result = await deleteLink(id)
       if (result.error) {
@@ -172,16 +152,12 @@ export function LinksManager({ links, buttonColor }: LinksManagerProps) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDeleteClick(link.id)}
+                      onClick={() => setDeletingLink(link)}
                       disabled={isPending}
                       aria-label="Eliminar link"
-                      className={`rounded-md border px-2 py-1 text-xs whitespace-nowrap disabled:opacity-50 ${
-                        confirmDeleteId === link.id
-                          ? 'border-red-700 bg-red-950 text-red-300'
-                          : 'border-slate-700'
-                      }`}
+                      className="rounded-md border border-slate-700 px-2 py-1 text-xs disabled:opacity-50"
                     >
-                      {confirmDeleteId === link.id ? '¿Confirmar?' : '🗑'}
+                      🗑
                     </button>
                   </div>
                 </div>
@@ -197,6 +173,18 @@ export function LinksManager({ links, buttonColor }: LinksManagerProps) {
           message={toastMessage}
           variant={toastVariant}
           onDismiss={() => setToastDismissed(true)}
+        />
+      )}
+
+      {deletingLink && (
+        <ConfirmDialog
+          title="Eliminar link"
+          message={`¿Seguro que querés eliminar "${deletingLink.title}"? Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          cancelLabel="Cancelar"
+          isDestructive
+          onConfirm={confirmDelete}
+          onCancel={() => setDeletingLink(null)}
         />
       )}
     </div>
