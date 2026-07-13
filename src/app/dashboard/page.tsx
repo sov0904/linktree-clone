@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { logout } from '@/app/actions/auth'
 import { ProfileForm } from '@/components/profile-form'
+import { LinksManager } from '@/components/links-manager'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -23,6 +24,12 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
+  const { data: links } = await supabase
+    .from('links')
+    .select('id, title, url, position')
+    .eq('profile_id', user.id)
+    .order('position', { ascending: true })
+
   return (
     <main className="min-h-screen bg-slate-950 p-4 text-white md:p-8">
       <div className="mx-auto max-w-2xl space-y-6">
@@ -42,9 +49,7 @@ export default async function DashboardPage() {
 
         <ProfileForm profile={profile} />
 
-        <p className="text-sm text-slate-500">
-          Próximamente (Fase 3): agregar, eliminar y reordenar links.
-        </p>
+        <LinksManager links={links ?? []} buttonColor={profile.button_color} />
       </div>
     </main>
   )
