@@ -47,7 +47,7 @@ export function ConfirmDialog({
         <h2 id="confirm-dialog-title" className="text-lg font-semibold text-white">
           {title}
         </h2>
-        <p className="mt-2 text-sm text-slate-400">{message}</p>
+        <p className="mt-2 text-sm text-slate-100">{message}</p>
         <div className="mt-6 flex justify-end gap-2">
           <button
             type="button"

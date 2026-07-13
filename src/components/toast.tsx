@@ -24,10 +24,10 @@ export function Toast({ message, variant, onDismiss, durationMs = 3500 }: ToastP
     <div
       role="status"
       aria-live="polite"
-      className={`fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-center gap-2 rounded-lg border px-4 py-3 text-sm shadow-lg sm:inset-x-auto sm:left-1/2 sm:right-auto sm:-translate-x-1/2 ${
+      className={`fixed inset-x-4 top-8 z-[100] mx-auto flex max-w-sm items-center gap-2 rounded-lg border-2 px-4 py-3 text-sm font-medium shadow-2xl sm:inset-x-auto sm:left-1/2 sm:right-auto sm:-translate-x-1/2 ${
         isSuccess
-          ? 'border-emerald-800 bg-emerald-950 text-emerald-300'
-          : 'border-red-800 bg-red-950 text-red-300'
+          ? 'border-emerald-400 bg-emerald-900 text-emerald-100 shadow-emerald-950/60'
+          : 'border-red-400 bg-red-900 text-red-100 shadow-red-950/60'
       }`}
     >
       {isSuccess ? (
