@@ -24,7 +24,7 @@ export function Toast({ message, variant, onDismiss, durationMs = 3500 }: ToastP
     <div
       role="status"
       aria-live="polite"
-      className={`fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-sm items-center gap-2 rounded-lg border px-4 py-3 text-sm shadow-lg sm:inset-x-auto sm:right-4 sm:left-auto ${
+      className={`fixed inset-x-4 top-4 z-50 mx-auto flex max-w-sm items-center gap-2 rounded-lg border px-4 py-3 text-sm shadow-lg sm:inset-x-auto sm:left-1/2 sm:right-auto sm:-translate-x-1/2 ${
         isSuccess
           ? 'border-emerald-800 bg-emerald-950 text-emerald-300'
           : 'border-red-800 bg-red-950 text-red-300'
