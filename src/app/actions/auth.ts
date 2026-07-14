@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 
 export type AuthFormState = { error?: string; message?: string } | undefined
@@ -42,11 +43,23 @@ export async function signup(
     return { error: 'Ese username ya está en uso.' }
   }
 
+  // No dependemos de la Site URL configurada en el dashboard de Supabase
+  // (solo soporta un valor "principal" y nos rompería el flujo en local vs.
+  // producción). Calculamos el origin real del request y lo pasamos
+  // explícito, así el link del correo siempre vuelve al mismo entorno
+  // donde se hizo el signup. Requiere que ese origin esté en la lista de
+  // "Redirect URLs" del dashboard (ver Authentication > URL Configuration).
+  const headersList = await headers()
+  const origin =
+    headersList.get('origin') ??
+    `${headersList.get('x-forwarded-proto') ?? 'http'}://${headersList.get('host')}`
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { username, display_name: username },
+      emailRedirectTo: `${origin}/login`,
     },
   })
 
