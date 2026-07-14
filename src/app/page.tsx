@@ -15,7 +15,6 @@ export default function HomePage() {
             Iniciar sesión
           </Link>
         </div>
-        <p className="text-slate-500 text-sm mt-8">Próximamente: dashboard de perfil y links, páginas públicas.</p>
       </div>
     </main>
   );
